@@ -1,0 +1,96 @@
+
+
+#SingleInstance, Force
+
+;Clipboard := "Bogota"
+;Sleep, 5000
+;Send,^v
+;Clipboard := ""
+;^t::
+;Send,#r
+;Sleep 2000
+;Send, {ENTER}
+;Sleep 5000
+;Run, https://liu.my.salesforce.com/0064R00001KnmWf
+;Run, C:\Program Files (x86)\Power Automate Desktop\PAD.Console.Host.exe
+;Sleep 4000
+;loop, 43{
+;Send,{TAB}
+;}
+;MouseMove, 100,200
+
+;;;;;;;;;;;;;;;;;;;;;ACTIVAR VENTANA Y CAMBIAR DE TAMAÑO
+;sleep, 3000
+;WinRestore, Power Automate Desktop
+;WinActivate, Power Automate Desktop
+;ancho:= 800
+;alto:=1300
+;WinMove, Power Automate Desktop,,461,78, %ancho% ,%alto%
+;CoordMode, Move, Window
+;MouseMove, 664,56
+;Sleep, 2000
+;Click
+;Sleep, 2000
+;Send, vb
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;Exl:=ComObjCreate("Excel.Application")
+;Exl.Visible:= False
+;n1533571
+;Wb.Add()
+;Ruta:= Substr(A_ScriptDir,10,8)
+;Run, C:\Users\%Ruta%\OneDrive - Liberty Mutual\Desktop\Http Request.xlsm
+;Exl.Workbooks.Open("C:\Users\" Ruta "\OneDrive - Liberty Mutual\Desktop\Http Request.xlsm")
+;Exl.Range("b1").Activate
+;Valores:=[]
+;polizas:=[]
+;Lfila:=Exl.cells(Exl.rows.count,2).End(-4162).Row
+lossrun:= "https://grs-datatechbi-ssrs.aws.lmig.com/Reports/report/UWBI/Managed%20Reports/Global/Quick%20Links/Loss%20Run%202%20(by%20Inception%20Year%20and%20SIR%20or%20Deductible%20amounts)"
+Run, %lossrun%
+Ventana:= "Loss Run 2 (by Inception Year and SIR or Deductible amounts) - SQL Server 2017 Reporting Services - Work - Microsoft​ Edge"
+WinWait, %Ventana%
+WinMove, %Ventana%,,100,100,700,700
+Sleep, 2000
+
+;loop %Lfila%
+;{
+;celda1:=Exl.cells(A_Index + 1,2).Value
+;Valores.Push(celda1)
+;celda:=Exl.cells(A_Index + 1,1).Value
+;polizas.Push(celda)
+;MsgBox %celda% %celda1%,
+;Run, %celda%
+;}
+;Exl.Quit()
+;Exl:=""
+
+WinWaitActive,  %Ventana%
+;CoordMode, Move, Window
+
+loop 39
+{
+Send, {Tab}
+;Sleep, 1000
+}
+Send, 24866597-1
+;Sleep, 20 
+Send, {Tab}{Tab}{Tab}{Enter}
+
+
+
+;maximo:=Valores.MaxIndex()
+;Loop %maximo%
+;{
+;index:= A_Index
+;valor:= Valores[index]
+;poliza:=polizas[index]
+;MsgBox  %valor% %poliza%
+
+;}
+
+
+
+MsgBox, "finalizado"
+;WinClose, %Ventana%
+Return
