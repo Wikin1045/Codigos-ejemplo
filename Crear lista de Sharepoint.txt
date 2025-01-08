@@ -108,3 +108,44 @@ EXAMPLE OK EXPRETIONS
 & """,""Email"":""" & Cells(f, Y + 2).Text _
 & ""","
 
+
+
+let
+
+    Origen = Salesforce.Data("https://login.salesforce.com/", [ApiVersion=48]),
+
+    Cases = 
+    Table.SelectColumns(
+    Table.SelectRows(
+    Origen{[Name="Case"]}[Data],
+    each [CreatedDate]>=#datetime(2024,1,1,0,0,0)
+    and [CreatedDate]<=#datetime(2024,12,31,0,0,0)
+    and [BPO_Team__c]<>""
+    and [Audit__c]="")
+    ,
+    {"Id","CreatedDate","CaseNumber","BPO_Team__c","Product_Type__c","Audit__c"}),
+
+    History= 
+    Table.SelectRows(
+    Origen{[Name="CaseHistory"]}[Data],
+    each [CreatedDate]>=#datetime(2024,1,1,0,0,0)
+    and [CreatedDate]<=#datetime(2024,12,31,0,0,0)
+    and  [Field]="Status"
+    ),
+    Filter_History=
+    Table.SelectColumns(
+    Table.SelectRows(
+    History, each [OldValue]="New"
+    and List.Contains({"On Hold","Escalated"},[NewValue])),
+    {"CaseId","NewValue"}),
+
+
+    Union = 
+    Table.SelectRows(
+    Table.ExpandTableColumn(
+    Table.NestedJoin(Cases, {"Id"}, Filter_History, {"CaseId"},"Tabla1", JoinKind.LeftOuter),
+    "Tabla1", {"NewValue"}, {"NewValue"}),
+    each [NewValue]<>null),
+    #"Duplicados quitados" = Table.Distinct(Union, {"CaseNumber"})
+in
+    #"Duplicados quitados"
