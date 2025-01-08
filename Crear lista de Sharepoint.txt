@@ -1,0 +1,110 @@
+
+CREATE SHAREPOINTLIST
+
+
+Uri*
+_api/web/list
+
+Headers*
+
+Accept -- application/json;odata=verbose
+Content-Type -- application/json
+
+Body*
+
+{
+"AllowContentTypes": true,
+"BaseTemplate": 100,
+"ContentTypesEnabled": true,
+"Description": "My list description",
+"Title": "Test"
+}
+
+
+_______________________________
+ADDING COLUMN
+
+
+Uri*
+_api/web/list/getByTitle("Test")/fields
+
+Headers*
+
+Content-Type -- application/json
+
+Body*
+
+{ '__metadata': { 'type': 'SP.Field' }, 
+     'FieldTypeKind': 2, 
+     'Title':'My Custom Column'
+}
+
+
+
+_____________________________
+UPDATE A SHAREPOINT LIST WITH HTTP
+
+Uri*
+_api/web/lists/getbytitle('DATA_EJEMPLO')/items(43)/ValidateUpdateListItem
+
+
+Body*
+
+{
+"formValues": [{
+	"FieldName":"Mail",
+	"FieldValue":"wikin1045@gmail"
+}
+]
+}
+
+
+
+
+_____________________________
+DELETE A ITEM IN SHAREPOINT LIST WITH HTTP
+
+
+Method* DELETE
+
+Uri*
+_api/web/lists/getbytitle('DATA_EJEMPLO')/items(43)
+
+
+Headers*
+If-Match -- *
+
+_____________________________
+CREATE A ITEM IN SHAREPOINT LIST WITH HTTP
+
+
+
+Method* POST
+
+Uri*
+_api/web/lists/getbytitle('DATA_EJEMPLO')/items
+
+
+Headers*
+Content-type--application/json
+Accept--application/json
+
+
+
+
+Body*
+{
+"Name":"Wikin"
+}
+
+
+
+
+___________________________________
+EXAMPLE OK EXPRETIONS
+
+& "{""Nombre"":""" & Cells(f, Y).Text & "}" _
+& """,""Edad"":""" & Cells(f, Y + 1).Value _
+& """,""Email"":""" & Cells(f, Y + 2).Text _
+& ""","
+
