@@ -1,0 +1,253 @@
+let
+
+
+History=
+Table.TransformColumns(
+Table.SelectRows(
+Sf{[Name="CaseHistory"]}[Data],
+each [CreatedDate] >= #datetime(2025,1,1,0,0,0)
+and [CreatedDate] <= #datetime(2025,12,31,0,0,0)
+
+),
+{"CreatedDate", each _ -#duration(0,5,0,0)}
+
+),  
+
+Lista1=
+{
+"Escalated","On Hold"
+},
+
+History1=
+Table.RenameColumns(
+Table.SelectRows(
+Table.Group(
+History,
+{"CaseId",
+"CreatedDate"},
+{
+{"Escalated_On Hold", each List.ContainsAll(Lista1,[NewValue])}
+}),
+each [Escalated_On Hold]=true),
+{"CreatedDate","CreatedDates"})
+,
+
+Cases =
+Table.TransformColumns(
+Table.SelectColumns( 
+Table.SelectRows(
+Sf{[Name="Case"]}[Data],
+each [ClosedDate] >= #datetime(2025,1,1,0,0,0)
+and [ClosedDate] <= #datetime(2025,12,31,0,0,0)),
+{"Id", "CaseNumber", "Type", "Reason", "Subject", "Priority", "Description", "ClosedDate", "OwnerId", "CreatedDate", "Product_Type__c", "Audit__c", "BPO_Team__c","Opportunity_Issuance__c"}),
+{
+{"CreatedDate", each _ -#duration(0,5,0,0)},
+{"ClosedDate", each _ -#duration(0,5,0,0)}
+    
+}),
+
+Union=
+Table.Join(
+Cases,"Id",History1,"CaseId",JoinKind.LeftOuter
+),
+
+Opp=
+Table.RenameColumns(
+Table.SelectColumns(
+Sf{[Name="Opportunity"]}[Data],
+{
+"Id","ProductService__c","Opp_Policy_Number__c"}
+),
+{"Id","OppId"}),
+
+Union2=
+Table.SelectRows(
+Table.Join(
+Union,"Opportunity_Issuance__c",Opp,"OppId",JoinKind.LeftOuter),
+each [BPO_Team__c]<>""),
+
+
+Time_case =
+Table.Group(
+Table.SelectRows(  
+Sf{[Name="Case_Status_Change__c"]}[Data],
+each [CreatedDate] >= #datetime(2025,1,1,0,0,0)
+and [CreatedDate] <= #datetime(2025,12,31,0,0,0)),
+{"Case__c"},
+{
+{"OpeneddDate", each List.Max([CreatedDate]), type datetime},
+{"Status_Time__c",each List.Max([Status_Time__c])}
+
+}
+
+
+),
+
+Union3=
+Table.Join(
+Union2,"Id",Time_case,"Case__c",JoinKind.LeftOuter
+),
+
+Users=
+ Table.RenameColumns(
+Table.SelectColumns(
+Sf{[Name="User"]}[Data],
+{"Id","Name"}),
+{{"Id", "IdUser"}}),
+
+Union4=
+Table.SelectColumns(
+Table.Join(
+Union3,"OwnerId",Users,"IdUser",JoinKind.LeftOuter
+),
+{"CaseNumber", "Type", "Reason", "Subject", "Priority", "Description", "ClosedDate", "CreatedDate", "Product_Type__c", "Audit__c", "BPO_Team__c", "CreatedDates", "Escalated_On Hold", "ProductService__c", "Opp_Policy_Number__c", "Status_Time__c", "Name"})
+
+
+in
+Union4
+
+
+
+let
+    Sf = Salesforce.Data("https://login.salesforce.com/", [ApiVersion=48])
+in
+    Sf
+
+
+let
+
+
+
+
+Tasks=
+Table.SelectRows(
+Sf{[Name="Task"]}[Data],
+each [CreatedDate] >= #datetime(2025,1,1,0,0,0)
+and [CreatedDate] <= #datetime(2025,12,31,0,0,0)
+),
+
+Users=
+Table.RenameColumns(
+Table.SelectColumns(
+Sf{[Name="User"]}[Data],
+{"Id", "Name", "BPO_Team__c"}),
+{{"Id", "IdUser"}}),
+
+Union=
+Table.SelectRows(
+Table.Join(
+Tasks,"OwnerId",Users,"IdUser",JoinKind.LeftOuter),
+each [BPO_Team__c]<>null),
+    #"Removed Other Columns" = Table.SelectColumns(Union,{"Id", "Subject", "Status", "Priority", "Description", "CreatedDate", "CompletedDateTime", "Name", "BPO_Team__c"})
+in
+    #"Removed Other Columns"
+
+
+
+Sub_Process = 
+            IF([Type]="Correction Needed" ,"",
+            IF([Team]="LIDER" || [Team]="LIBERTY" || [Team]="FORMACION" || [Team]="CALIDAD" ,"",
+
+            IF([Team]="CLAIMS" || [Team]="FAST TRACK" && [Type]="Policy/Documents"||[Type]="Claim Others" || [Type]="Claims Others","DOCUMENT HANDLING",
+            IF([Team]="CLAIMS" || [Team]="FAST TRACK" && [Type]="Claim Occurrence" || [Type]="Claims Ocurrence" ,"FNOL",
+            IF([Team]="CLAIMS" || [Team]="FAST TRACK" && [Type]="Claim Occurrence" || [Type]="Claims Operation","CLAIM HANDLING",
+            IF([Team]="CLAIMS" || [Team]="FAST TRACK" && [Type]="Claim Occurrence" || [Type]="Claim Payment","PAYMENT",
+
+            
+            IF([Team]="ENECON" && [Type]="Issuance","BOOKING",IF([Team]="ENECON" && [Type]="Issuance Endorsement","BOOKING",
+            IF([Team]="ENECON" && [Type]="Policy/Documents","POLICY PACKAGE",IF([Team]="ENECON" && [Type]="Support","QUOTING SUPPORT",
+            IF([Team]="ENECON" && [Type]="Renewal Prep","RENEWAL SET UP",IF([Team]="ENECON" && [Type]="UW Center","UW SUPPORT ACTIVITIES",
+            IF([Team]="ENECON" && [Type]="Submission" && CONTAINSSTRING([Description],"Decline"),"DECLINE / NTU",
+            IF([Team]="ENECON" && [Type]="Submission","SUBMISSION",
+
+            
+            IF([Team]="USA" && [Type]="Submission" && CONTAINSSTRING([Description],"Decline"),"DECLINE / NTU",
+            IF([Team]="USA" && [Type]="Submission","SUBMISSION",IF([Team]="USA" && [Type]="Policy/Documents","POLICY PACKAGE",
+            IF([Team]="USA" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",IF([Team]="USA" && [Type]="OFAC","SUBMISSION",
+            IF([Team]="USA" && [Type]="Renewal Prep","RENEWAL SET UP",IF([Team]="USA" && [Type]="Support","UW SUPPORT ACTIVITIES",
+            IF([Team]="USA" && CONTAINSSTRING([Type],"UW Center"),"BOOKING",
+            
+
+            
+            IF([Team]="LATAM" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",IF([Team]="PERU" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",
+            IF([Team]="LATAM"  && [Type]="Policy/Documents","POLICY PACKAGE",IF([Team]="PERU"  && [Type]="Policy/Documents","POLICY PACKAGE",
+            IF([Team]="LATAM"  && [Type]="Renewal Prep","RENEWAL SET UP",IF([Team]="PERU"  && [Type]="Renewal Prep","RENEWAL SET UP",
+            IF([Team]="LATAM"  && [Type]="Declined/Lost","DECLINE / NTU",IF([Team]="PERU"  && [Type]="Declined/Lost","DECLINE / NTU",
+            IF([Team]="LATAM"  && [Type]="Support","UW SUPPORT ACTIVITIES",IF([Team]="PERU"  && [Type]="Support","UW SUPPORT ACTIVITIES",
+            IF([Team]="LATAM"  && [Type]="Submission","SUBMISSION",IF([Team]="PERU"  && [Type]="Submission","SUBMISSION",
+
+            
+            IF([Team]="PUERTO RICO" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",IF([Team]="PUERTO RICO"  && [Type]="Submission","SUBMISSION",
+            IF([Team]="PUERTO RICO" && [Type]="Policy/Documents","POLICY PACKAGE",IF([Team]="PUERTO RICO" && [Type]="Support","UW SUPPORT ACTIVITIES",
+            IF([Team]="PUERTO RICO" && [Type]="Renewal Prep","RENEWAL SET UP",
+
+            IF([Team]="FIRST PARTY" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",IF([Team]="FIRST PARTY" && [Type]="Quote","QUOTING SUPPORT",
+            IF([Team]="FIRST PARTY" && [Type]="Renewal Prep","RENEWAL SET UP",IF([Team]="FIRST PARTY" && [Type]="Submission","SUBMISSION",
+            IF([Team]="FIRST PARTY" && [Type]="Declined/Lost","SUBMISSION",IF([Team]="FIRST PARTY" && [Type]="Submission","SUBMISSION",
+            IF([Team]="FIRST PARTY" && [Type]="Support","SUBMISSION",IF([Team]="FIRST PARTY" && [Type]="OFAC","SUBMISSION",
+            IF([Team]="FIRST PARTY" && [Type]="UW Center","BOOKING",IF([Team]="FIRST PARTY" && [Type]="Support","SUBMISSION",
+
+            IF([Team]="THIRD PARTY" && CONTAINSSTRING([Type],"Issuance"),"BOOKING",IF([Team]="THIRD PARTY" && [Type]="Quote","QUOTING SUPPORT",
+            IF([Team]="THIRD PARTY" && [Type]="Renewal Prep","RENEWAL SET UP",IF([Team]="THIRD PARTY" && [Type]="Submission","SUBMISSION",
+            IF([Team]="THIRD PARTY" && [Type]="Declined/Lost","SUBMISSION",IF([Team]="THIRD PARTY" && [Type]="Submission","SUBMISSION",
+            IF([Team]="THIRD PARTY" && [Type]="Support","SUBMISSION",IF([Team]="THIRD PARTY" && [Type]="OFAC","SUBMISSION",
+            IF([Team]="THIRD PARTY" && [Type]="UW Center","BOOKING",IF([Team]="THIRD PARTY" && [Type]="Support","SUBMISSION",
+
+            IF([Team]<>"CAT MODELING","",           
+            IF([Team]="CAT MODELING" && [Type]="CAT Modeling"  && CONTAINSSTRING([Description],"AIR") || CONTAINSSTRING([Description]," Post Bind ") || CONTAINSSTRING([Description]," Pre Bind ")
+            || CONTAINSSTRING([Description],"Post Bind ") || CONTAINSSTRING([Description],"Pre Bind ") || CONTAINSSTRING([Description]," PostBind ") || CONTAINSSTRING([Description]," PreBind ")
+            || CONTAINSSTRING([Description]," Pre-Bind ") || CONTAINSSTRING([Description]," PreBind") || CONTAINSSTRING([Description]," PostBind") || CONTAINSSTRING([Description],"Binder")
+            || CONTAINSSTRING([Description]," PostBind") || CONTAINSSTRING([Description],"MODELAR") || CONTAINSSTRING([Description],"CAT NET") || CONTAINSSTRING([Description],"Model")
+            || CONTAINSSTRING([Description],"Please book the account according")
+            ,"EXPOSURE MANAGEMENT",
+            
+            IF([Team]="CAT MODELING" && [Type]="CAT Modeling" && CONTAINSSTRING([Description],"LDM")|| CONTAINSSTRING([Description],"SANDBOX ")
+            || CONTAINSSTRING([Description],"TIV") || CONTAINSSTRING([Description],"LDM ")
+            ,"LDM"
+
+            
+
+
+
+))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+
+
+
+
+
+
+
+
+
+
+Process = 
+          IF([Type]="Correction Needed","",
+          IF([Team]="CLAIMS" || [Team]="FAST TRACK","CLAIM SUPPORT",
+          IF([Team]="CAT MODELING","EXPOSURE MANAGEMENT",
+          IF([Team]="LATAM" || [Team]="PERU" || [Team]="USA" || [Team]="ENECON" || [Team]="PUERTO RICO" || [Team]="FIRST PARTY" ||
+          [Team]="THIRD PARTY","UNDERWRITING SUPPORT" 
+          
+          ))))
+
+
+
+
+
+
+
+
+Macro_Proces = 
+
+SUMMARIZECOLUMNS(
+    'Case'[BPO_Team__c],
+    'Case'[Type],
+    'Case'[Description],
+    'Case'[Month],
+    "Conteo_Cases",DISTINCTCOUNT('Case'[CaseNumber])
+  )
+
+
+
+
+
+Month = MONTH('Case'[ClosedDate]) & "-" & FORMAT('Case'[ClosedDate],"MMM")
